@@ -13,7 +13,7 @@ func Setup(extensionID string) {
 		rCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 			isProd, _ := cmd.Flags().GetBool("prod")
 			rootDir := "./"
-			if !isProd {
+			if isProd {
 				rootDir, _ = cmd.Flags().GetString("root")
 			}
 			extension = &Extension{
