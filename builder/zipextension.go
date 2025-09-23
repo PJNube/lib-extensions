@@ -18,10 +18,19 @@ import (
 const IdSeparator = "-"
 
 func GetId(profile, vendor, name string) string {
-	if profile == "" || vendor == "" || name == "" {
-		return ""
+	if profile == "" {
+		profile = "na"
+		fmt.Println("WARNING: profile is empty...")
 	}
-	return strings.ToLower(fmt.Sprintf("%s%s%s%s%s", profile, IdSeparator, vendor, IdSeparator, name))
+	if vendor == "" {
+		vendor = "na"
+		fmt.Println("WARNING: vendor is empty...")
+	}
+	if name == "" {
+		name = "na"
+		fmt.Println("WARNING: name is empty...")
+	}
+	return strings.ToLower(strings.Join([]string{profile, vendor, name}, IdSeparator))
 }
 
 func PackageExtension() error {
@@ -40,7 +49,6 @@ func PackageExtension() error {
 	}
 
 	outputFolder := path.Join(cwd, ZippedFolderName)
-	outputZipPath := path.Join(outputFolder, ZipFileName)
 	executableFullPath := filepath.Join(cwd, executablePath)
 	fmt.Println("Creating ZIP file...")
 	err = os.Mkdir(outputFolder, 0755)
@@ -86,6 +94,8 @@ func PackageExtension() error {
 		return err
 	}
 
+	id := GetId(metadata.Profile, metadata.Vendor, metadata.Name)
+	outputZipPath := path.Join(outputFolder, strings.Join([]string{id, IdSeparator, metadata.Version, ".zip"}, ""))
 	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
 	if err != nil {
 		return err
@@ -96,7 +106,7 @@ func PackageExtension() error {
 		fmt.Println("Warning: failed to remove temporary executable:", err)
 	}
 
-	fmt.Printf("\nZIP file created at: %s\n", outputZipPath)
+	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
 	return nil
 }
 
