@@ -14,23 +14,22 @@ import (
 	"strings"
 )
 
+const IdSeparator = "-"
+
 func getId(profile, vendor, name string) string {
 	if profile == "" || vendor == "" || name == "" {
 		return ""
 	}
-	return strings.ToLower(fmt.Sprintf("%s::%s::%s", profile, vendor, name))
+	return strings.ToLower(fmt.Sprintf("%s%s%s%s%s", profile, IdSeparator, vendor, IdSeparator, name))
 }
 
-func PackageExtension(windows bool) error {
+func PackageExtension() error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
 	executableName := ExecutableName
-	if windows {
-		executableName += ".exe"
-	}
 
 	cmd := exec.Command("go", "build", "-o", executableName, "main.go")
 	cmd.Stdout = os.Stdout
