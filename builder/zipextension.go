@@ -39,7 +39,7 @@ func PackageExtension() error {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	executablePath := fmt.Sprintf("%s/%s", BuildPath, ExecutableName)
+	executablePath := path.Join(BuildPath, ExecutableName)
 
 	cmd := exec.Command("go", "build", "-o", executablePath, "main.go")
 	cmd.Stdout = os.Stdout
