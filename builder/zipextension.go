@@ -12,11 +12,12 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const IdSeparator = "-"
 
-func getId(profile, vendor, name string) string {
+func GetId(profile, vendor, name string) string {
 	if profile == "" || vendor == "" || name == "" {
 		return ""
 	}
@@ -29,9 +30,9 @@ func PackageExtension() error {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	executableName := ExecutableName
+	executablePath := fmt.Sprintf("%s/%s", BuildPath, ExecutableName)
 
-	cmd := exec.Command("go", "build", "-o", executableName, "main.go")
+	cmd := exec.Command("go", "build", "-o", executablePath, "main.go")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -40,7 +41,7 @@ func PackageExtension() error {
 
 	outputFolder := path.Join(cwd, ZippedFolderName)
 	outputZipPath := path.Join(outputFolder, ZipFileName)
-	executablePath := filepath.Join(cwd, executableName)
+	executableFullPath := filepath.Join(cwd, executablePath)
 	fmt.Println("Creating ZIP file...")
 	err = os.Mkdir(outputFolder, 0755)
 	if err != nil {
@@ -65,12 +66,12 @@ func PackageExtension() error {
 		return fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
 
-	metadata.Id = getId(metadata.Profile, metadata.Vendor, metadata.Name)
+	metadata.BuildTime = getBuildTime()
 	commentInfo, _ := json.Marshal(metadata)
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	err = addExecutableToZip(zipWriter, executablePath)
+	err = addExecutableToZip(zipWriter, executableFullPath)
 	if err != nil {
 		return err
 	}
@@ -90,7 +91,12 @@ func PackageExtension() error {
 		return err
 	}
 
-	fmt.Printf("\n$ZIP file created at: %s\n", outputZipPath)
+	err = os.RemoveAll(BuildPath)
+	if err != nil {
+		fmt.Println("Warning: failed to remove temporary executable:", err)
+	}
+
+	fmt.Printf("\nZIP file created at: %s\n", outputZipPath)
 	return nil
 }
 
@@ -133,4 +139,9 @@ func addExecutableToZip(zipWriter *zip.Writer, executablePath string) error {
 	}
 
 	return nil
+}
+
+func getBuildTime() string {
+	currentTime := time.Now().UTC()
+	return currentTime.Format(time.RFC3339)
 }
