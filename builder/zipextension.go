@@ -5,43 +5,42 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/PJNube/lib-extensions/manifest"
+	"github.com/PJNube/lib-extensions/naming"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
 
-const IdSeparator = "-"
+const (
+	ExecutableName   = "extension"
+	ZippedFolderName = "out"
+	MetadataFileName = "extension.json"
+	BuildPath        = "executable"
+)
 
-func GetId(profile, vendor, name string) string {
-	if profile == "" {
-		profile = "na"
-		fmt.Println("WARNING: profile is empty...")
-	}
-	if vendor == "" {
-		vendor = "na"
-		fmt.Println("WARNING: vendor is empty...")
-	}
-	if name == "" {
-		name = "na"
-		fmt.Println("WARNING: name is empty...")
-	}
-	return strings.ToLower(strings.Join([]string{profile, vendor, name}, IdSeparator))
-}
-
-func PackageExtension() error {
+// PackageExtension packages the extension into a zip file.
+// The 'arch' parameter is optional and mainly used for testing.
+func PackageExtension(arch ...string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
 	executablePath := path.Join(BuildPath, ExecutableName)
-
-	cmd := exec.Command("go", "build", "-o", executablePath, "main.go")
+	cmd := exec.Command(
+		"go", "build",
+		"-trimpath",
+		"-ldflags=-s -w",
+		"-o", executablePath,
+		"main.go",
+	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -68,13 +67,20 @@ func PackageExtension() error {
 		return fmt.Errorf("failed to read metadata file: %w", err)
 	}
 
-	metadata := ZipMetadata{}
+	metadata := manifest.Metadata{}
 	err = json.Unmarshal(tempBytes.Bytes(), &metadata)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
 
 	metadata.BuildTime = getBuildTime()
+
+	if len(arch) > 0 {
+		metadata.Dependencies.Architecture = arch[0]
+	} else {
+		metadata.Dependencies.Architecture = runtime.GOARCH
+	}
+
 	commentInfo, _ := json.Marshal(metadata)
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
@@ -94,8 +100,9 @@ func PackageExtension() error {
 		return err
 	}
 
-	id := GetId(metadata.Profile, metadata.Vendor, metadata.Name)
-	outputZipPath := path.Join(outputFolder, strings.Join([]string{id, IdSeparator, metadata.Version, ".zip"}, ""))
+	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
+	zipFileName := strings.Join([]string{id, metadata.Version, metadata.Dependencies.Architecture}, naming.IdSeparator)
+	outputZipPath := path.Join(outputFolder, strings.Join([]string{zipFileName, ".zip"}, ""))
 	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
 	if err != nil {
 		return err
