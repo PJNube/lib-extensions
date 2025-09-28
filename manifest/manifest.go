@@ -1,12 +1,4 @@
-package builder
-
-const (
-	ExecutableName   = "extension"
-	ZippedFolderName = "out"
-	ZipFileName      = "extension.zip"
-	MetadataFileName = "extension.json"
-	BuildPath        = "executable"
-)
+package manifest
 
 type Dependency struct {
 	Version string `json:"version"`
@@ -35,7 +27,7 @@ type OpenAPIFile struct {
 	Path  string `json:"path"`
 }
 
-type ZipMetadata struct {
+type Metadata struct {
 	Profile   string `json:"profile"`
 	Vendor    string `json:"vendor"`
 	Name      string `json:"name"`
@@ -48,7 +40,6 @@ type ZipMetadata struct {
 	Subjects       map[string][]string `json:"subjects,omitempty"`
 	Resources      []Resource          `json:"resources,omitempty"`
 	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
-	ConfigFolder   string              `json:"configFolder,omitempty"`
 	StaticPath     string              `json:"staticPath,omitempty"`
 	OpenAPISchemas []OpenAPIFile       `json:"openAPISchemas,omitempty"`
 }
