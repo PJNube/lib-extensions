@@ -1,26 +1,26 @@
 package pjnextensions
 
 import (
-	"github.com/spf13/cobra"
 	"path"
+
+	"github.com/spf13/cobra"
 )
 
 func Setup(extensionID string) {
 	onceApp.Do(func() {
 		rCmd := GetRootCmd()
 		rCmd.PersistentFlags().Bool("prod", false, "Is production?")
-		rCmd.PersistentFlags().StringP("root", "r", "/ros/server/extensions", "Root Directory (default /ros/server/extensions)")
 		rCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 			isProd, _ := cmd.Flags().GetBool("prod")
-			rootDir := "./"
+			extensionDir := "./"
 			if isProd {
-				rootDir, _ = cmd.Flags().GetString("root")
+				extensionDir = "../"
 			}
 			extension = &Extension{
 				ID:           extensionID,
-				RootDir:      rootDir,
-				ExtensionDir: path.Join(extensionID),
-				DataDir:      path.Join(extensionID, "data"),
+				ExtensionDir: extensionDir,
+				DataDir:      path.Join(extensionDir, "data"),
+				ConfigDir:    path.Join(extensionDir, "config"),
 			}
 			return nil
 		}
