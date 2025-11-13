@@ -1,8 +1,9 @@
 package pjnextensions
 
 import (
-	"github.com/spf13/cobra"
 	"sync"
+
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -14,9 +15,9 @@ var (
 
 type Extension struct {
 	ID           string `json:"id"`
-	RootDir      string `json:"rootDir"`
 	ExtensionDir string `json:"extensionDir"`
 	DataDir      string `json:"dataDir"`
+	ConfigDir    string `json:"configDir"`
 }
 
 func GetExtension() *Extension {
