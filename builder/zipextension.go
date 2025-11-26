@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/PJNube/lib-extensions/manifest"
-	"github.com/PJNube/lib-extensions/naming"
 	"io"
 	"log"
 	"os"
@@ -16,6 +14,9 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/PJNube/lib-extensions/manifest"
+	"github.com/PJNube/lib-extensions/naming"
 )
 
 const (
@@ -49,6 +50,8 @@ func PackageExtension(arch ...string) error {
 
 	outputFolder := path.Join(cwd, ZippedFolderName)
 	executableFullPath := filepath.Join(cwd, executablePath)
+	metadataFilePath := path.Join(cwd, MetadataFileName)
+
 	fmt.Println("Creating ZIP file...")
 	err = os.Mkdir(outputFolder, 0755)
 	if err != nil {
@@ -85,7 +88,7 @@ func PackageExtension(arch ...string) error {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	err = addExecutableToZip(zipWriter, executableFullPath)
+	err = addFilesToZip(zipWriter, executableFullPath, metadataFilePath)
 	if err != nil {
 		return err
 	}
@@ -117,23 +120,35 @@ func PackageExtension(arch ...string) error {
 	return nil
 }
 
-func addExecutableToZip(zipWriter *zip.Writer, executablePath string) error {
-	fileInfo, err := os.Stat(executablePath)
-	if os.IsNotExist(err) {
-		executablePath += ".exe"
-		fileInfo, err = os.Stat(executablePath)
-		if os.IsNotExist(err) {
-			return fmt.Errorf("executable file does not exist: %s", executablePath)
+func addFilesToZip(zipWriter *zip.Writer, paths ...string) error {
+	for _, path := range paths {
+		err := zipFile(zipWriter, path)
+		if err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	file, err := os.Open(executablePath)
+func zipFile(zipWriter *zip.Writer, filePath string) error {
+	fileInfo, err := os.Stat(filePath)
+	if os.IsNotExist(err) && filepath.Ext(filePath) != ".exe" {
+		filePath += ".exe"
+		fileInfo, err = os.Stat(filePath)
+	}
+
+	if os.IsNotExist(err) {
+		return fmt.Errorf("file does not exist: %s", filePath)
+	}
+
+	file, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to open executable: %w", err)
+		return fmt.Errorf("failed to open file %s: %w", filepath.Base(filePath), err)
 	}
 	defer file.Close()
 
-	filename := filepath.Base(executablePath)
+	filename := filepath.Base(filePath)
+
 	header := &zip.FileHeader{
 		Name:   filename,
 		Method: zip.Deflate,
@@ -147,12 +162,12 @@ func addExecutableToZip(zipWriter *zip.Writer, executablePath string) error {
 
 	writer, err := zipWriter.CreateHeader(header)
 	if err != nil {
-		return fmt.Errorf("failed to create zip entry: %w", err)
+		return fmt.Errorf("failed to create zip entry for %s: %w", filename, err)
 	}
 
 	_, err = io.Copy(writer, file)
 	if err != nil {
-		return fmt.Errorf("failed to copy file to zip: %w", err)
+		return fmt.Errorf("failed to copy file %s to zip: %w", filename, err)
 	}
 
 	return nil

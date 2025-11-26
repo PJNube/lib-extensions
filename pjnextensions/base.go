@@ -14,7 +14,6 @@ var (
 )
 
 type Extension struct {
-	ID           string `json:"id"`
 	ExtensionDir string `json:"extensionDir"`
 	DataDir      string `json:"dataDir"`
 	ConfigDir    string `json:"configDir"`
