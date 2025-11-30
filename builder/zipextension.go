@@ -22,7 +22,6 @@ import (
 const (
 	ExecutableName   = "extension"
 	ZippedFolderName = "out"
-	MetadataFileName = "extension.json"
 	BuildPath        = "executable"
 )
 
@@ -50,7 +49,7 @@ func PackageExtension(arch ...string) error {
 
 	outputFolder := path.Join(cwd, ZippedFolderName)
 	executableFullPath := filepath.Join(cwd, executablePath)
-	metadataFilePath := path.Join(cwd, MetadataFileName)
+	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
 
 	fmt.Println("Creating ZIP file...")
 	err = os.Mkdir(outputFolder, 0755)
@@ -59,21 +58,10 @@ func PackageExtension(arch ...string) error {
 			return fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
-	file, err := os.Open(MetadataFileName)
-	if err != nil {
-		return fmt.Errorf("failed to open metadata file: %w", err)
-	}
-	defer file.Close()
-	tempBytes := &bytes.Buffer{}
-	_, err = file.WriteTo(tempBytes)
-	if err != nil {
-		return fmt.Errorf("failed to read metadata file: %w", err)
-	}
 
-	metadata := manifest.Metadata{}
-	err = json.Unmarshal(tempBytes.Bytes(), &metadata)
+	metadata, err := manifest.GetMetadata()
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal metadata: %w", err)
+		return err
 	}
 
 	metadata.BuildTime = getBuildTime()
@@ -122,7 +110,7 @@ func PackageExtension(arch ...string) error {
 
 func addFilesToZip(zipWriter *zip.Writer, paths ...string) error {
 	for _, path := range paths {
-		err := zipFile(zipWriter, path)
+		err := addFileToZip(zipWriter, path)
 		if err != nil {
 			return err
 		}
@@ -130,7 +118,7 @@ func addFilesToZip(zipWriter *zip.Writer, paths ...string) error {
 	return nil
 }
 
-func zipFile(zipWriter *zip.Writer, filePath string) error {
+func addFileToZip(zipWriter *zip.Writer, filePath string) error {
 	fileInfo, err := os.Stat(filePath)
 	if os.IsNotExist(err) && filepath.Ext(filePath) != ".exe" {
 		filePath += ".exe"
