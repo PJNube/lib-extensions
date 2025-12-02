@@ -1,5 +1,14 @@
 package manifest
 
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+const MetadataFileName = "extension.json"
+
 type Dependency struct {
 	Version string `json:"version"`
 }
@@ -42,4 +51,24 @@ type Metadata struct {
 	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
 	StaticPath     string              `json:"staticPath,omitempty"`
 	OpenAPISchemas []OpenAPIFile       `json:"openAPISchemas,omitempty"`
+}
+
+func GetMetadata() (*Metadata, error) {
+	file, err := os.Open(MetadataFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open metadata file: %w", err)
+	}
+	defer file.Close()
+	tempBytes := &bytes.Buffer{}
+	_, err = file.WriteTo(tempBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read metadata file: %w", err)
+	}
+
+	metadata := &Metadata{}
+	err = json.Unmarshal(tempBytes.Bytes(), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+	}
+	return metadata, nil
 }

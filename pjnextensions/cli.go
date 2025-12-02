@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func Setup(extensionID string) {
+func Setup() {
 	onceApp.Do(func() {
 		rCmd := GetRootCmd()
 		rCmd.PersistentFlags().Bool("prod", false, "Is production?")
@@ -17,7 +17,6 @@ func Setup(extensionID string) {
 				extensionDir = "../"
 			}
 			extension = &Extension{
-				ID:           extensionID,
 				ExtensionDir: extensionDir,
 				DataDir:      path.Join(extensionDir, "data"),
 				ConfigDir:    path.Join(extensionDir, "config"),
