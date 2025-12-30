@@ -19,6 +19,8 @@ import (
 	"github.com/PJNube/lib-extensions/naming"
 )
 
+const ChecksumFileName = "checksums.sha256"
+
 const (
 	ExecutableName   = "extension"
 	ZippedFolderName = "out"
@@ -84,6 +86,19 @@ func PackageExtension(arch ...string) error {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
+	out, err := os.Create(ChecksumFileName)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	err = generateChecksums(out, executableFullPath, metadataFilePath)
+	if err != nil {
+		return err
+	}
+
+	filePaths = append(filePaths, ChecksumFileName)
+
 	err = addFilesToZip(zipWriter, filePaths...)
 	if err != nil {
 		return err
@@ -111,6 +126,8 @@ func PackageExtension(arch ...string) error {
 	if err != nil {
 		fmt.Println("Warning: failed to remove temporary executable:", err)
 	}
+
+	_ = os.Remove(ChecksumFileName)
 
 	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
 	return nil
