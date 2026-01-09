@@ -32,8 +32,8 @@ type DataAccess struct {
 }
 
 type OpenAPIFile struct {
-	Label string `json:"label"`
-	Path  string `json:"path"`
+	Name string `json:"name"`
+	Url  string `json:"url"`
 }
 
 type Metadata struct {

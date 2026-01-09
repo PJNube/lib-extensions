@@ -72,11 +72,22 @@ func PackageExtension(arch ...string) error {
 		metadata.Dependencies.Architecture = runtime.GOARCH
 	}
 
+	var openAPISchemaUrls []string
+	for _, schema := range metadata.OpenAPISchemas {
+		openAPISchemaUrls = append(openAPISchemaUrls, schema.Url)
+	}
+
 	commentInfo, _ := json.Marshal(metadata)
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	err = addFilesToZip(zipWriter, executableFullPath, metadataFilePath)
+	filePaths := append([]string{executableFullPath, metadataFilePath}, openAPISchemaUrls...)
+	for _, filepath := range filePaths {
+		if _, err := os.Stat(filepath); os.IsNotExist(err) {
+			return fmt.Errorf("required file %s does not exist", filepath)
+		}
+	}
+	err = addFilesToZip(zipWriter, filePaths...)
 	if err != nil {
 		return err
 	}
