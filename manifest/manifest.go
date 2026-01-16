@@ -51,6 +51,8 @@ type Metadata struct {
 	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
 	StaticPath     string              `json:"staticPath,omitempty"`
 	OpenAPISchemas []OpenAPIFile       `json:"openAPISchemas,omitempty"`
+	ReadMe         string              `json:"readMe,omitempty"`
+	ChangeLog      string              `json:"changeLog,omitempty"`
 }
 
 func GetMetadata() (*Metadata, error) {
