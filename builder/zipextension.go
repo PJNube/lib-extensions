@@ -47,11 +47,8 @@ func PackageExtension(arch ...string) error {
 		log.Fatalf("Failed to build utility script: %v", err)
 	}
 
-	outputFolder := path.Join(cwd, ZippedFolderName)
-	executableFullPath := filepath.Join(cwd, executablePath)
-	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
-
 	fmt.Println("Creating ZIP file...")
+	outputFolder := path.Join(cwd, ZippedFolderName)
 	err = os.Mkdir(outputFolder, 0755)
 	if err != nil {
 		if !os.IsExist(err) {
@@ -65,18 +62,29 @@ func PackageExtension(arch ...string) error {
 	}
 
 	metadata.BuildTime = getBuildTime()
-
 	if len(arch) > 0 {
 		metadata.Dependencies.Architecture = arch[0]
 	} else {
 		metadata.Dependencies.Architecture = runtime.GOARCH
 	}
 
+	executableFullPath := filepath.Join(cwd, executablePath)
+	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
+	filePaths := []string{executableFullPath, metadataFilePath}
+	for _, schema := range metadata.OpenAPISchemas {
+		filePaths = append(filePaths, schema.Path)
+	}
+	for _, filePath := range filePaths {
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			return fmt.Errorf("required file %s does not exist", filePath)
+		}
+	}
+
 	commentInfo, _ := json.Marshal(metadata)
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	err = addFilesToZip(zipWriter, executableFullPath, metadataFilePath)
+	err = addFilesToZip(zipWriter, filePaths...)
 	if err != nil {
 		return err
 	}

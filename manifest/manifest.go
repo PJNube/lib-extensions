@@ -31,7 +31,7 @@ type DataAccess struct {
 	Permission string `json:"permission"`
 }
 
-type OpenAPIFile struct {
+type OpenAPISchema struct {
 	Label string `json:"label"`
 	Path  string `json:"path"`
 }
@@ -50,7 +50,7 @@ type Metadata struct {
 	Resources      []Resource          `json:"resources,omitempty"`
 	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
 	StaticPath     string              `json:"staticPath,omitempty"`
-	OpenAPISchemas []OpenAPIFile       `json:"openAPISchemas,omitempty"`
+	OpenAPISchemas []OpenAPISchema     `json:"openAPISchemas,omitempty"`
 	ReadMe         string              `json:"readMe,omitempty"`
 	ChangeLog      string              `json:"changeLog,omitempty"`
 }
