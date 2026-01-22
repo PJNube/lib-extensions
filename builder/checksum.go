@@ -7,7 +7,24 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/PJNube/lib-extensions/manifest"
 )
+
+func GenerateChecksumsFile(outputFile *os.File, commentInfo []byte, filePaths ...string) error {
+	err := generateChecksums(outputFile, filePaths...)
+	if err != nil {
+		return err
+	}
+
+	// Generate checksum for the enriched metadata content
+	err = generateChecksumFromContent(outputFile, manifest.MetadataFileName, commentInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func generateChecksums(outputFile *os.File, filePaths ...string) error {
 	for _, filePath := range filePaths {
@@ -58,4 +75,16 @@ func hashFile(path string) (string, error) {
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func generateChecksumFromContent(outputFile *os.File, fileName string, content []byte) error {
+	hash := hashContent(content)
+	_, err := fmt.Fprintf(outputFile, "%s  %s\n", hash, fileName)
+	return err
+}
+
+func hashContent(content []byte) string {
+	h := sha256.New()
+	h.Write(content)
+	return hex.EncodeToString(h.Sum(nil))
 }
