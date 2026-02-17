@@ -33,11 +33,22 @@ func PackageExtension(arch ...string) error {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
+	metadata, err := manifest.GetMetadata()
+	if err != nil {
+		return err
+	}
+
+	version := metadata.Version
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+
+	ldFlags := fmt.Sprintf("-s -w -X main.Version=%s", version)
 	executablePath := path.Join(BuildPath, ExecutableName)
 	cmd := exec.Command(
 		"go", "build",
 		"-trimpath",
-		"-ldflags=-s -w",
+		"-ldflags", ldFlags,
 		"-o", executablePath,
 		"main.go",
 	)
@@ -54,11 +65,6 @@ func PackageExtension(arch ...string) error {
 		if !os.IsExist(err) {
 			return fmt.Errorf("failed to create output directory: %w", err)
 		}
-	}
-
-	metadata, err := manifest.GetMetadata()
-	if err != nil {
-		return err
 	}
 
 	metadata.BuildTime = getBuildTime()
