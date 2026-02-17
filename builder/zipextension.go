@@ -38,7 +38,12 @@ func PackageExtension(arch ...string) error {
 		return err
 	}
 
-	ldFlags := fmt.Sprintf("-s -w -X main.Version=v%s", metadata.Version)
+	version := metadata.Version
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+
+	ldFlags := fmt.Sprintf("-s -w -X main.Version=%s", version)
 	executablePath := path.Join(BuildPath, ExecutableName)
 	cmd := exec.Command(
 		"go", "build",
