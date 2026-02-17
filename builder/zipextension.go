@@ -17,12 +17,14 @@ import (
 
 	"github.com/PJNube/lib-extensions/manifest"
 	"github.com/PJNube/lib-extensions/naming"
+	"github.com/PJNube/lib-extensions/pjnextensions"
 )
 
 const (
 	ExecutableName   = "extension"
 	ZippedFolderName = "out"
 	BuildPath        = "executable"
+	ConfigFileName   = "config.yaml"
 )
 
 // PackageExtension packages the extension into a zip file.
@@ -80,10 +82,19 @@ func PackageExtension(arch ...string) error {
 	for _, schema := range metadata.OpenAPISchemas {
 		filePaths = append(filePaths, schema.Path)
 	}
+
 	for _, filePath := range filePaths {
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			return fmt.Errorf("required file %s does not exist", filePath)
 		}
+	}
+
+	configFilePath, err := getConfigFilePath()
+	if err != nil {
+		return fmt.Errorf("failed to get config file path: %w", err)
+	}
+	if configFilePath != "" {
+		filePaths = append(filePaths, configFilePath)
 	}
 
 	commentInfo, _ := json.Marshal(metadata)
@@ -178,4 +189,20 @@ func addFileToZip(zipWriter *zip.Writer, filePath string) error {
 func getBuildTime() string {
 	currentTime := time.Now().UTC()
 	return currentTime.Format(time.RFC3339)
+}
+
+func getConfigFilePath() (string, error) {
+	pjnextensions.Setup("")
+	if err := pjnextensions.GetRootCmd().Execute(); err != nil {
+		return "", err
+	}
+
+	pjExt := pjnextensions.GetExtension()
+
+	configfile := filepath.Join(pjExt.ConfigDir, ConfigFileName)
+	if _, err := os.Stat(configfile); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	return configfile, nil
 }
