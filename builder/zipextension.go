@@ -19,6 +19,8 @@ import (
 	"github.com/PJNube/lib-extensions/naming"
 )
 
+const ChecksumFileName = "checksums.sha256"
+
 const (
 	ExecutableName   = "extension"
 	ZippedFolderName = "out"
@@ -76,20 +78,42 @@ func PackageExtension(arch ...string) error {
 
 	executableFullPath := filepath.Join(cwd, executablePath)
 	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
-	filePaths := []string{executableFullPath, metadataFilePath}
+
+	filePaths := []string{executableFullPath}
 	for _, schema := range metadata.OpenAPISchemas {
 		filePaths = append(filePaths, schema.Path)
 	}
-	for _, filePath := range filePaths {
+
+	allFiles := append(filePaths, metadataFilePath)
+	for _, filePath := range allFiles {
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			return fmt.Errorf("required file %s does not exist", filePath)
 		}
 	}
 
 	commentInfo, _ := json.Marshal(metadata)
+
+	out, err := os.Create(ChecksumFileName)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	err = GenerateChecksumsFile(out, commentInfo, filePaths...)
+	if err != nil {
+		return err
+	}
+
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
+	// Add enriched metadata content directly to the zip (same content as the comment)
+	err = addContentToZip(zipWriter, manifest.MetadataFileName, commentInfo)
+	if err != nil {
+		return err
+	}
+
+	filePaths = append(filePaths, ChecksumFileName)
 	err = addFilesToZip(zipWriter, filePaths...)
 	if err != nil {
 		return err
@@ -105,9 +129,7 @@ func PackageExtension(arch ...string) error {
 		return err
 	}
 
-	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
-	zipFileName := strings.Join([]string{id, metadata.Version, metadata.Dependencies.Architecture}, naming.IdSeparator)
-	outputZipPath := path.Join(outputFolder, strings.Join([]string{zipFileName, ".zip"}, ""))
+	outputZipPath := getOutputZipPath(metadata, outputFolder)
 	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
 	if err != nil {
 		return err
@@ -117,6 +139,8 @@ func PackageExtension(arch ...string) error {
 	if err != nil {
 		fmt.Println("Warning: failed to remove temporary executable:", err)
 	}
+
+	_ = os.Remove(ChecksumFileName)
 
 	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
 	return nil
@@ -178,4 +202,30 @@ func addFileToZip(zipWriter *zip.Writer, filePath string) error {
 func getBuildTime() string {
 	currentTime := time.Now().UTC()
 	return currentTime.Format(time.RFC3339)
+}
+
+func addContentToZip(zipWriter *zip.Writer, filename string, content []byte) error {
+	header := &zip.FileHeader{
+		Name:   filename,
+		Method: zip.Deflate,
+	}
+	header.SetMode(0644)
+
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+
+	_, err = writer.Write(content)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getOutputZipPath(metadata *manifest.Metadata, outputFolder string) string {
+	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
+	zipFileName := strings.Join([]string{id, metadata.Version, metadata.Dependencies.Architecture}, naming.IdSeparator)
+	return path.Join(outputFolder, strings.Join([]string{zipFileName, ".zip"}, ""))
 }
