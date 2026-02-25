@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -13,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/PJNube/lib-extensions/manifest"
 	"github.com/PJNube/lib-extensions/naming"
@@ -23,11 +21,12 @@ const (
 	ExecutableName   = "extension"
 	ZippedFolderName = "out"
 	BuildPath        = "executable"
+	ConfigFileName   = "config.yaml"
 )
 
 // PackageExtension packages the extension into a zip file.
-// The 'arch' parameter is optional and mainly used for testing.
-func PackageExtension(arch ...string) error {
+// The 'architecture' field is optional and mainly used for testing.
+func PackageExtension(opts Opts) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
@@ -68,8 +67,8 @@ func PackageExtension(arch ...string) error {
 	}
 
 	metadata.BuildTime = getBuildTime()
-	if len(arch) > 0 {
-		metadata.Dependencies.Architecture = arch[0]
+	if opts.Architecture != "" {
+		metadata.Dependencies.Architecture = opts.Architecture
 	} else {
 		metadata.Dependencies.Architecture = runtime.GOARCH
 	}
@@ -80,10 +79,18 @@ func PackageExtension(arch ...string) error {
 	for _, schema := range metadata.OpenAPISchemas {
 		filePaths = append(filePaths, schema.Path)
 	}
+
 	for _, filePath := range filePaths {
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			return fmt.Errorf("required file %s does not exist", filePath)
 		}
+	}
+
+	configFilePath, err := getConfigPath(opts)
+	if err != nil {
+		return fmt.Errorf("failed to get config file path: %w", err)
+	} else if configFilePath != "" {
+		filePaths = append(filePaths, configFilePath)
 	}
 
 	commentInfo, _ := json.Marshal(metadata)
@@ -120,62 +127,4 @@ func PackageExtension(arch ...string) error {
 
 	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
 	return nil
-}
-
-func addFilesToZip(zipWriter *zip.Writer, paths ...string) error {
-	for _, path := range paths {
-		err := addFileToZip(zipWriter, path)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func addFileToZip(zipWriter *zip.Writer, filePath string) error {
-	fileInfo, err := os.Stat(filePath)
-	if os.IsNotExist(err) && filepath.Ext(filePath) != ".exe" {
-		filePath += ".exe"
-		fileInfo, err = os.Stat(filePath)
-	}
-
-	if os.IsNotExist(err) {
-		return fmt.Errorf("file does not exist: %s", filePath)
-	}
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s: %w", filepath.Base(filePath), err)
-	}
-	defer file.Close()
-
-	filename := filepath.Base(filePath)
-
-	header := &zip.FileHeader{
-		Name:   filename,
-		Method: zip.Deflate,
-	}
-
-	mode := fileInfo.Mode()
-	if mode&0111 == 0 {
-		mode |= 0755
-	}
-	header.SetMode(mode)
-
-	writer, err := zipWriter.CreateHeader(header)
-	if err != nil {
-		return fmt.Errorf("failed to create zip entry for %s: %w", filename, err)
-	}
-
-	_, err = io.Copy(writer, file)
-	if err != nil {
-		return fmt.Errorf("failed to copy file %s to zip: %w", filename, err)
-	}
-
-	return nil
-}
-
-func getBuildTime() string {
-	currentTime := time.Now().UTC()
-	return currentTime.Format(time.RFC3339)
 }
