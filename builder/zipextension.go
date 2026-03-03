@@ -86,10 +86,11 @@ func PackageExtension(opts Opts) error {
 		}
 	}
 
-	configFilePath, err := getConfigPath(opts)
-	if err != nil {
-		return fmt.Errorf("failed to get config file path: %w", err)
-	} else if configFilePath != "" {
+	if opts.ConfigDir != "" {
+		configFilePath := path.Join(opts.ConfigDir, ConfigFileName)
+		if _, err := os.Stat(configFilePath); err != nil {
+			return fmt.Errorf("config file does not exist at specified path: %s", configFilePath)
+		}
 		filePaths = append(filePaths, configFilePath)
 	}
 

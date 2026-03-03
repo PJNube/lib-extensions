@@ -7,13 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/PJNube/lib-extensions/pjnextensions"
 )
 
 type Opts struct {
-	Architecture   string
-	ConfigFilePath string
+	Architecture string
+	ConfigDir    string
 }
 
 func addFilesToZip(zipWriter *zip.Writer, paths ...string) error {
@@ -72,27 +70,4 @@ func addFileToZip(zipWriter *zip.Writer, filePath string) error {
 func getBuildTime() string {
 	currentTime := time.Now().UTC()
 	return currentTime.Format(time.RFC3339)
-}
-
-func getConfigPath(opts Opts) (string, error) {
-	if opts.ConfigFilePath != "" {
-		if _, err := os.Stat(opts.ConfigFilePath); err == nil {
-			return opts.ConfigFilePath, nil
-		} else {
-			return "", nil
-		}
-	}
-
-	pjnextensions.Setup("")
-	if err := pjnextensions.GetRootCmd().Execute(); err != nil {
-		return "", err
-	}
-
-	pjExt := pjnextensions.GetExtension()
-	configfile := filepath.Join(pjExt.ConfigDir, ConfigFileName)
-	if _, err := os.Stat(configfile); err == nil {
-		return configfile, nil
-	}
-
-	return "", nil
 }
