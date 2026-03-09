@@ -114,11 +114,19 @@ func PackageExtension(opts Opts) error {
 	}
 
 	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
-	zipFileName := strings.Join([]string{id, metadata.Version, metadata.Dependencies.Architecture}, naming.IdSeparator)
-	outputZipPath := path.Join(outputFolder, strings.Join([]string{zipFileName, ".zip"}, ""))
+
+	updateReleaseVersion(metadata)
+
+	parts := []string{id, metadata.Version}
+	if metadata.DistVersion != "" {
+		parts = append(parts, metadata.DistVersion)
+	}
+	parts = append(parts, metadata.Dependencies.Architecture)
+	zipFileName := strings.Join(parts, naming.IdSeparator) + ".zip"
+	outputZipPath := filepath.Join(outputFolder, zipFileName)
 	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write zip file %s: %w", outputZipPath, err)
 	}
 
 	err = os.RemoveAll(BuildPath)
@@ -128,4 +136,42 @@ func PackageExtension(opts Opts) error {
 
 	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
 	return nil
+}
+
+func updateReleaseVersion(metadata *manifest.Metadata) {
+	if metadata.DistVersion != "" {
+		return
+	}
+
+	releaseVersion := getReleaseVersionFormGit()
+	if releaseVersion == "" {
+		return
+	}
+
+	metadata.DistVersion = releaseVersion
+	metadata.CommitID = getCommitID()
+}
+
+func getReleaseVersionFormGit() string {
+	cmd := exec.Command("git", "branch", "--show-current")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	branchName := strings.TrimSpace(string(out))
+	if strings.HasPrefix(branchName, "release/") {
+		return strings.TrimPrefix(branchName, "release/")
+	}
+
+	return ""
+}
+
+func getCommitID() string {
+	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
