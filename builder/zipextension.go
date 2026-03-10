@@ -73,9 +73,10 @@ func PackageExtension(opts Opts) error {
 		metadata.Dependencies.Architecture = runtime.GOARCH
 	}
 
+	updateReleaseVersion(metadata)
+
 	executableFullPath := filepath.Join(cwd, executablePath)
-	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
-	filePaths := []string{executableFullPath, metadataFilePath}
+	filePaths := []string{executableFullPath}
 	for _, schema := range metadata.OpenAPISchemas {
 		filePaths = append(filePaths, schema.Path)
 	}
@@ -94,7 +95,6 @@ func PackageExtension(opts Opts) error {
 		filePaths = append(filePaths, configFilePath)
 	}
 
-	commentInfo, _ := json.Marshal(metadata)
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
@@ -103,6 +103,11 @@ func PackageExtension(opts Opts) error {
 		return err
 	}
 
+	if err = addMetadataToZip(zipWriter, metadata); err != nil {
+		return fmt.Errorf("failed to add metadata to zip: %w", err)
+	}
+
+	commentInfo, _ := json.Marshal(metadata)
 	err = zipWriter.SetComment(string(commentInfo))
 	if err != nil {
 		return fmt.Errorf("failed to set zip comment: %w", err)
@@ -115,8 +120,6 @@ func PackageExtension(opts Opts) error {
 
 	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
 
-	updateReleaseVersion(metadata)
-
 	parts := []string{id, metadata.Version}
 	if metadata.DistVersion != "" {
 		parts = append(parts, metadata.DistVersion)
@@ -124,6 +127,7 @@ func PackageExtension(opts Opts) error {
 	parts = append(parts, metadata.Dependencies.Architecture)
 	zipFileName := strings.Join(parts, naming.IdSeparator) + ".zip"
 	outputZipPath := filepath.Join(outputFolder, zipFileName)
+
 	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write zip file %s: %w", outputZipPath, err)
@@ -135,6 +139,7 @@ func PackageExtension(opts Opts) error {
 	}
 
 	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
+	fmt.Printf("included metadata distVersion: %s, commitId: %s\n", metadata.DistVersion, metadata.CommitID)
 	return nil
 }
 
