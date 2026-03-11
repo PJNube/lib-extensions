@@ -2,6 +2,7 @@ package builder
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -76,10 +77,15 @@ func getBuildTime() string {
 }
 
 func addMetadataToZip(zipWriter *zip.Writer, metadata *manifest.Metadata) error {
-	data, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(metadata); err != nil {
+		return fmt.Errorf("failed to encode metadata: %w", err)
 	}
+	data := buf.Bytes()
+	data = bytes.TrimSuffix(data, []byte{'\n'})
 
 	header := &zip.FileHeader{
 		Name:   manifest.MetadataFileName,
