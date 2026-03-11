@@ -148,16 +148,16 @@ func updateReleaseVersion(metadata *manifest.Metadata) {
 		return
 	}
 
-	releaseVersion := getReleaseVersionFormGit()
+	releaseVersion := getReleaseVersionFromGit()
 	if releaseVersion == "" {
 		return
 	}
 
 	metadata.DistVersion = releaseVersion
-	metadata.CommitID = getCommitID()
+	metadata.CommitID = getCommitIDFromGit()
 }
 
-func getReleaseVersionFormGit() string {
+func getReleaseVersionFromGit() string {
 	cmd := exec.Command("git", "branch", "--show-current")
 	out, err := cmd.Output()
 	if err != nil {
@@ -172,7 +172,7 @@ func getReleaseVersionFormGit() string {
 	return ""
 }
 
-func getCommitID() string {
+func getCommitIDFromGit() string {
 	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
 	out, err := cmd.Output()
 	if err != nil {
