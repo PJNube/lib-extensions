@@ -2,11 +2,15 @@ package builder
 
 import (
 	"archive/zip"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/PJNube/lib-extensions/manifest"
 )
 
 type Opts struct {
@@ -70,4 +74,33 @@ func addFileToZip(zipWriter *zip.Writer, filePath string) error {
 func getBuildTime() string {
 	currentTime := time.Now().UTC()
 	return currentTime.Format(time.RFC3339)
+}
+
+func addMetadataToZip(zipWriter *zip.Writer, metadata *manifest.Metadata) error {
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(metadata); err != nil {
+		return fmt.Errorf("failed to encode metadata: %w", err)
+	}
+	data := buf.Bytes()
+	data = bytes.TrimSuffix(data, []byte{'\n'})
+
+	header := &zip.FileHeader{
+		Name:   manifest.MetadataFileName,
+		Method: zip.Deflate,
+	}
+	header.SetMode(0644)
+
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return fmt.Errorf("failed to create zip entry for %s: %w", manifest.MetadataFileName, err)
+	}
+
+	if _, err = writer.Write(data); err != nil {
+		return fmt.Errorf("failed to write metadata to zip: %w", err)
+	}
+
+	return nil
 }
