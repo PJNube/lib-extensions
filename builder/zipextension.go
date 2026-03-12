@@ -73,7 +73,7 @@ func PackageExtension(opts Opts) error {
 		metadata.Dependencies.Architecture = runtime.GOARCH
 	}
 
-	updateReleaseVersion(metadata)
+	updateDistVersion(metadata)
 
 	executableFullPath := filepath.Join(cwd, executablePath)
 	filePaths := []string{executableFullPath}
@@ -143,12 +143,12 @@ func PackageExtension(opts Opts) error {
 	return nil
 }
 
-func updateReleaseVersion(metadata *manifest.Metadata) {
+func updateDistVersion(metadata *manifest.Metadata) {
 	if metadata.DistVersion != "" {
 		return
 	}
 
-	releaseVersion := getReleaseVersionFromGit()
+	releaseVersion := getDistVersionFromGit()
 	if releaseVersion == "" {
 		return
 	}
@@ -157,7 +157,7 @@ func updateReleaseVersion(metadata *manifest.Metadata) {
 	metadata.CommitID = getCommitIDFromGit()
 }
 
-func getReleaseVersionFromGit() string {
+func getDistVersionFromGit() string {
 	cmd := exec.Command("git", "branch", "--show-current")
 	out, err := cmd.Output()
 	if err != nil {
