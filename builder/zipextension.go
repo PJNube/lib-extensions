@@ -148,12 +148,12 @@ func updateDistVersion(metadata *manifest.Metadata) {
 		return
 	}
 
-	releaseVersion := getDistVersionFromGit()
-	if releaseVersion == "" {
+	distVersion := getDistVersionFromGit()
+	if distVersion == "" {
 		return
 	}
 
-	metadata.DistVersion = releaseVersion
+	metadata.DistVersion = distVersion
 	metadata.CommitID = getCommitIDFromGit()
 }
 
