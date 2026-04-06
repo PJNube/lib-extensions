@@ -45,16 +45,17 @@ type Metadata struct {
 	CommitID    string `json:"commitId"`
 	BuildTime   string `json:"buildTime"`
 
-	BuildUser      string              `json:"buildUser,omitempty"`
-	Description    string              `json:"description,omitempty"`
-	Dependencies   Dependencies        `json:"dependencies,omitempty"`
-	Subjects       map[string][]string `json:"subjects,omitempty"`
-	Resources      []Resource          `json:"resources,omitempty"`
-	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
-	StaticPath     string              `json:"staticPath,omitempty"`
-	OpenAPISchemas []OpenAPISchema     `json:"openAPISchemas,omitempty"`
-	ReadMe         string              `json:"readMe,omitempty"`
-	ChangeLog      string              `json:"changeLog,omitempty"`
+	BuildUser          string              `json:"buildUser,omitempty"`
+	Description        string              `json:"description,omitempty"`
+	Dependencies       Dependencies        `json:"dependencies,omitempty"`
+	Subjects           map[string][]string `json:"subjects,omitempty"`
+	Resources          []Resource          `json:"resources,omitempty"`
+	BlackListResources []string            `json:"blackListResources,omitempty"`
+	DataAccesses       []DataAccess        `json:"dataAccesses,omitempty"`
+	StaticPath         string              `json:"staticPath,omitempty"`
+	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
+	ReadMe             string              `json:"readMe,omitempty"`
+	ChangeLog          string              `json:"changeLog,omitempty"`
 }
 
 func GetMetadata() (*Metadata, error) {
@@ -74,5 +75,6 @@ func GetMetadata() (*Metadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
+
 	return metadata, nil
 }
