@@ -37,13 +37,11 @@ type OpenAPISchema struct {
 }
 
 type Metadata struct {
-	Profile     string `json:"profile"`
-	Vendor      string `json:"vendor"`
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	DistVersion string `json:"distVersion"`
-	CommitID    string `json:"commitId"`
-	BuildTime   string `json:"buildTime"`
+	Profile   string `json:"profile"`
+	Vendor    string `json:"vendor"`
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	BuildTime string `json:"buildTime"`
 
 	BuildUser      string              `json:"buildUser,omitempty"`
 	Description    string              `json:"description,omitempty"`

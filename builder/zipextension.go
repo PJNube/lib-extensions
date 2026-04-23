@@ -73,10 +73,9 @@ func PackageExtension(opts Opts) error {
 		metadata.Dependencies.Architecture = runtime.GOARCH
 	}
 
-	updateDistVersion(metadata)
-
 	executableFullPath := filepath.Join(cwd, executablePath)
-	filePaths := []string{executableFullPath}
+	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
+	filePaths := []string{executableFullPath, metadataFilePath}
 	for _, schema := range metadata.OpenAPISchemas {
 		filePaths = append(filePaths, schema.Path)
 	}
@@ -95,6 +94,7 @@ func PackageExtension(opts Opts) error {
 		filePaths = append(filePaths, configFilePath)
 	}
 
+	commentInfo, _ := json.Marshal(metadata)
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
@@ -103,11 +103,6 @@ func PackageExtension(opts Opts) error {
 		return err
 	}
 
-	if err = addMetadataToZip(zipWriter, metadata); err != nil {
-		return fmt.Errorf("failed to add metadata to zip: %w", err)
-	}
-
-	commentInfo, _ := json.Marshal(metadata)
 	err = zipWriter.SetComment(string(commentInfo))
 	if err != nil {
 		return fmt.Errorf("failed to set zip comment: %w", err)
@@ -119,18 +114,11 @@ func PackageExtension(opts Opts) error {
 	}
 
 	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
-
-	parts := []string{id, metadata.Version}
-	if metadata.DistVersion != "" {
-		parts = append(parts, metadata.DistVersion)
-	}
-	parts = append(parts, metadata.Dependencies.Architecture)
-	zipFileName := strings.Join(parts, naming.IdSeparator) + ".zip"
-	outputZipPath := filepath.Join(outputFolder, zipFileName)
-
+	zipFileName := strings.Join([]string{id, metadata.Version, metadata.Dependencies.Architecture}, naming.IdSeparator)
+	outputZipPath := path.Join(outputFolder, strings.Join([]string{zipFileName, ".zip"}, ""))
 	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
 	if err != nil {
-		return fmt.Errorf("failed to write zip file %s: %w", outputZipPath, err)
+		return err
 	}
 
 	err = os.RemoveAll(BuildPath)
@@ -139,44 +127,5 @@ func PackageExtension(opts Opts) error {
 	}
 
 	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
-	fmt.Printf("included metadata distVersion: %s, commitId: %s\n", metadata.DistVersion, metadata.CommitID)
 	return nil
-}
-
-func updateDistVersion(metadata *manifest.Metadata) {
-	if metadata.DistVersion != "" {
-		return
-	}
-
-	distVersion := getDistVersionFromGit()
-	if distVersion == "" {
-		return
-	}
-
-	metadata.DistVersion = distVersion
-	metadata.CommitID = getCommitIDFromGit()
-}
-
-func getDistVersionFromGit() string {
-	cmd := exec.Command("git", "branch", "--show-current")
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	branchName := strings.TrimSpace(string(out))
-	if strings.HasPrefix(branchName, "release/") {
-		return strings.TrimPrefix(branchName, "release/")
-	}
-
-	return ""
-}
-
-func getCommitIDFromGit() string {
-	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
 }
