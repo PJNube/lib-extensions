@@ -43,16 +43,18 @@ type Metadata struct {
 	Version   string `json:"version"`
 	BuildTime string `json:"buildTime"`
 
-	BuildUser      string              `json:"buildUser,omitempty"`
-	Description    string              `json:"description,omitempty"`
-	Dependencies   Dependencies        `json:"dependencies,omitempty"`
-	Subjects       map[string][]string `json:"subjects,omitempty"`
-	Resources      []Resource          `json:"resources,omitempty"`
-	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
-	StaticPath     string              `json:"staticPath,omitempty"`
-	OpenAPISchemas []OpenAPISchema     `json:"openAPISchemas,omitempty"`
-	ReadMe         string              `json:"readMe,omitempty"`
-	ChangeLog      string              `json:"changeLog,omitempty"`
+	BuildUser          string              `json:"buildUser,omitempty"`
+	Description        string              `json:"description,omitempty"`
+	Dependencies       Dependencies        `json:"dependencies,omitempty"`
+	Subjects           map[string][]string `json:"subjects,omitempty"`
+	Resources          []Resource          `json:"resources,omitempty"`
+	DataAccesses       []DataAccess        `json:"dataAccesses,omitempty"`
+	StaticPath         string              `json:"staticPath,omitempty"`
+	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
+	ReadMe             string              `json:"readMe,omitempty"`
+	ChangeLog          string              `json:"changeLog,omitempty"`
+	PrivilegedCommands []string            `json:"privileged_commands,omitempty"`
+	PrivilegedPaths    []string            `json:"privileged_paths,omitempty"`
 }
 
 func GetMetadata() (*Metadata, error) {
