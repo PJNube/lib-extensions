@@ -53,8 +53,8 @@ type Metadata struct {
 	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
 	ReadMe             string              `json:"readMe,omitempty"`
 	ChangeLog          string              `json:"changeLog,omitempty"`
-	PrivilegedCommands []string            `json:"privileged_commands,omitempty"`
-	PrivilegedPaths    []string            `json:"privileged_paths,omitempty"`
+	PrivilegedCommands []string            `json:"privilegedCommands,omitempty"`
+	PrivilegedPaths    []string            `json:"privilegedPaths,omitempty"`
 }
 
 func GetMetadata() (*Metadata, error) {
