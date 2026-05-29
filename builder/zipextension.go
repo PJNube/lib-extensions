@@ -1,131 +1,62 @@
 package builder
 
 import (
-	"archive/zip"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
-	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
-
-	"github.com/PJNube/lib-extensions/manifest"
-	"github.com/PJNube/lib-extensions/naming"
 )
 
 const (
 	ExecutableName   = "extension"
 	ZippedFolderName = "out"
-	BuildPath        = "executable"
 	ConfigFileName   = "config.yaml"
 )
 
-// PackageExtension packages the extension into a zip file.
-// The 'architecture' field is optional and mainly used for testing.
+// Opts controls optional packaging behaviour.
+type Opts struct {
+	// Architecture overrides the target architecture in the zip filename
+	// (e.g. "arm64", "amd64"). When empty, unipack defaults to "arm64"
+	// for BE and CE profiles.
+	Architecture string
+}
+
+// PackageExtension compiles the extension binary and packages it using unipack.
+//
+// It expects `unipack/unipack.sh` to be present relative to the caller's working
+// directory (add unipack as a git submodule: git submodule add <url> unipack).
+//
+// What files are included in the zip is controlled by pack.toml in the extension
+// directory (or unipack's built-in convention for the profile). The output zip is
+// written to `out/`.
 func PackageExtension(opts Opts) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get current working directory: %w", err)
+	// 1. Compile the Go binary into the project root
+	executablePath := ExecutableName
+	compile := exec.Command("go", "build", "-trimpath", "-ldflags", "-s -w", "-o", executablePath, ".")
+	compile.Stdout = os.Stdout
+	compile.Stderr = os.Stderr
+	if err := compile.Run(); err != nil {
+		return fmt.Errorf("failed to compile binary: %w", err)
 	}
 
-	metadata, err := manifest.GetMetadata()
-	if err != nil {
-		return err
+	// 2. Pack with unipack (unipack must be a git submodule at ./unipack/).
+	//    pack.toml in the extension directory is the single source of truth for
+	//    which files are included in the zip.
+	if _, err := os.Stat("unipack/unipack.sh"); err != nil {
+		return fmt.Errorf(
+			"unipack not found at unipack/unipack.sh — add it as a submodule:\n"+
+				"  git submodule add git@github.com:PJNube/unipack.git unipack",
+		)
 	}
-
-	version := metadata.Version
-	if !strings.HasPrefix(version, "v") {
-		version = "v" + version
-	}
-
-	ldFlags := fmt.Sprintf("-s -w -X main.Version=%s", version)
-	executablePath := path.Join(BuildPath, ExecutableName)
-	cmd := exec.Command(
-		"go", "build",
-		"-trimpath",
-		"-ldflags", ldFlags,
-		"-o", executablePath,
-		"main.go",
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		log.Fatalf("Failed to build utility script: %v", err)
-	}
-
-	fmt.Println("Creating ZIP file...")
-	outputFolder := path.Join(cwd, ZippedFolderName)
-	err = os.Mkdir(outputFolder, 0755)
-	if err != nil {
-		if !os.IsExist(err) {
-			return fmt.Errorf("failed to create output directory: %w", err)
-		}
-	}
-
-	metadata.BuildTime = getBuildTime()
+	packArgs := []string{"unipack/unipack.sh", ".", "--out", ZippedFolderName}
 	if opts.Architecture != "" {
-		metadata.Dependencies.Architecture = opts.Architecture
-	} else {
-		metadata.Dependencies.Architecture = runtime.GOARCH
+		packArgs = append(packArgs, "--arch", opts.Architecture)
+	}
+	pack := exec.Command("bash", packArgs...)
+	pack.Stdout = os.Stdout
+	pack.Stderr = os.Stderr
+	if err := pack.Run(); err != nil {
+		return fmt.Errorf("failed to pack with unipack: %w", err)
 	}
 
-	executableFullPath := filepath.Join(cwd, executablePath)
-	metadataFilePath := path.Join(cwd, manifest.MetadataFileName)
-	filePaths := []string{executableFullPath, metadataFilePath}
-	for _, schema := range metadata.OpenAPISchemas {
-		filePaths = append(filePaths, schema.Path)
-	}
-
-	for _, filePath := range filePaths {
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return fmt.Errorf("required file %s does not exist", filePath)
-		}
-	}
-
-	if opts.ConfigDir != "" {
-		configFilePath := path.Join(opts.ConfigDir, ConfigFileName)
-		if _, err := os.Stat(configFilePath); err != nil {
-			return fmt.Errorf("config file does not exist at specified path: %s", configFilePath)
-		}
-		filePaths = append(filePaths, configFilePath)
-	}
-
-	commentInfo, _ := json.Marshal(metadata)
-	buf := new(bytes.Buffer)
-	zipWriter := zip.NewWriter(buf)
-
-	err = addFilesToZip(zipWriter, filePaths...)
-	if err != nil {
-		return err
-	}
-
-	err = zipWriter.SetComment(string(commentInfo))
-	if err != nil {
-		return fmt.Errorf("failed to set zip comment: %w", err)
-	}
-
-	err = zipWriter.Close()
-	if err != nil {
-		return err
-	}
-
-	id := naming.GetId(metadata.Profile, metadata.Vendor, metadata.Name)
-	zipFileName := strings.Join([]string{id, metadata.Version, metadata.Dependencies.Architecture}, naming.IdSeparator)
-	outputZipPath := path.Join(outputFolder, strings.Join([]string{zipFileName, ".zip"}, ""))
-	err = os.WriteFile(outputZipPath, buf.Bytes(), 0644)
-	if err != nil {
-		return err
-	}
-
-	err = os.RemoveAll(BuildPath)
-	if err != nil {
-		fmt.Println("Warning: failed to remove temporary executable:", err)
-	}
-
-	fmt.Printf("ZIP file created at: %s\n", outputZipPath)
 	return nil
 }
