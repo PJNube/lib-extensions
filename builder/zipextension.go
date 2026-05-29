@@ -25,12 +25,17 @@ type Opts struct {
 // It expects `unipack/unipack.sh` to be present relative to the caller's working
 // directory (add unipack as a git submodule: git submodule add <url> unipack).
 //
-// What files are included in the zip is controlled by pack.toml in the extension
-// directory (or unipack's built-in convention for the profile). The output zip is
-// written to `out/`.
+// The binary is compiled to `out/extension`. pack.toml (or unipack's built-in
+// convention) controls which files are zipped; add `"out"` to the strip list so
+// the binary appears as `extension` at the zip root. The output zip is written
+// to `out/`.
 func PackageExtension(opts Opts) error {
-	// 1. Compile the Go binary into the project root
-	executablePath := ExecutableName
+	// 1. Compile the Go binary into out/ so it doesn't conflict with the
+	//    extension/ package subdirectory that most extensions contain.
+	if err := os.MkdirAll(ZippedFolderName, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	executablePath := ZippedFolderName + "/" + ExecutableName
 	compile := exec.Command("go", "build", "-trimpath", "-ldflags", "-s -w", "-o", executablePath, ".")
 	compile.Stdout = os.Stdout
 	compile.Stderr = os.Stderr
