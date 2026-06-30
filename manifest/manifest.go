@@ -42,6 +42,7 @@ type Metadata struct {
 	Name      string `json:"name"`
 	Version   string `json:"version"`
 	BuildTime string `json:"buildTime"`
+	Core      bool   `json:"core,omitempty"`
 
 	BuildUser          string              `json:"buildUser,omitempty"`
 	Description        string              `json:"description,omitempty"`
