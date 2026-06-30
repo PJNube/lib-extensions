@@ -37,12 +37,12 @@ type OpenAPISchema struct {
 }
 
 type Metadata struct {
-	Profile   string `json:"profile"`
-	Vendor    string `json:"vendor"`
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	BuildTime string `json:"buildTime"`
-	Core      bool   `json:"core,omitempty"`
+	Profile      string `json:"profile"`
+	Vendor       string `json:"vendor"`
+	Name         string `json:"name"`
+	Version      string `json:"version"`
+	BuildTime    string `json:"buildTime"`
+	NonRemovable bool   `json:"nonRemovable,omitempty"`
 
 	BuildUser          string              `json:"buildUser,omitempty"`
 	Description        string              `json:"description,omitempty"`
