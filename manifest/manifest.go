@@ -37,12 +37,12 @@ type OpenAPISchema struct {
 }
 
 type Metadata struct {
-	Profile      string `json:"profile"`
-	Vendor       string `json:"vendor"`
-	Name         string `json:"name"`
-	Version      string `json:"version"`
-	BuildTime    string `json:"buildTime"`
-	NonRemovable bool   `json:"nonRemovable,omitempty"`
+	Profile       string `json:"profile"`
+	Vendor        string `json:"vendor"`
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	BuildTime     string `json:"buildTime"`
+	Uninstallable bool   `json:"uninstallable,omitempty"`
 
 	BuildUser          string              `json:"buildUser,omitempty"`
 	Description        string              `json:"description,omitempty"`
@@ -56,6 +56,21 @@ type Metadata struct {
 	ChangeLog          string              `json:"changeLog,omitempty"`
 	PrivilegedCommands []string            `json:"privilegedCommands,omitempty"`
 	PrivilegedPaths    []string            `json:"privilegedPaths,omitempty"`
+}
+
+func (e *Metadata) UnmarshalJSON(data []byte) error {
+	type Alias Metadata
+
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(e),
+	}
+
+	// Set defaults
+	e.Uninstallable = true
+
+	return json.Unmarshal(data, aux)
 }
 
 func GetMetadata() (*Metadata, error) {
