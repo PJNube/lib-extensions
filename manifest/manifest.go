@@ -44,18 +44,20 @@ type Metadata struct {
 	BuildTime    string `json:"buildTime"`
 	NonRemovable bool   `json:"nonRemovable,omitempty"`
 
-	BuildUser          string              `json:"buildUser,omitempty"`
-	Description        string              `json:"description,omitempty"`
-	Dependencies       Dependencies        `json:"dependencies,omitempty"`
-	Subjects           map[string][]string `json:"subjects,omitempty"`
-	Resources          []Resource          `json:"resources,omitempty"`
-	DataAccesses       []DataAccess        `json:"dataAccesses,omitempty"`
-	StaticPath         string              `json:"staticPath,omitempty"`
-	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
-	ReadMe             string              `json:"readMe,omitempty"`
-	ChangeLog          string              `json:"changeLog,omitempty"`
-	PrivilegedCommands []string            `json:"privilegedCommands,omitempty"`
-	PrivilegedPaths    []string            `json:"privilegedPaths,omitempty"`
+	BuildUser            string              `json:"buildUser,omitempty"`
+	Description          string              `json:"description,omitempty"`
+	Dependencies         Dependencies        `json:"dependencies,omitempty"`
+	Subjects             map[string][]string `json:"subjects,omitempty"`
+	Resources            []Resource          `json:"resources,omitempty"`
+	DataAccesses         []DataAccess        `json:"dataAccesses,omitempty"`
+	StaticPath           string              `json:"staticPath,omitempty"`
+	OpenAPISchemas       []OpenAPISchema     `json:"openAPISchemas,omitempty"`
+	ReadMe               string              `json:"readMe,omitempty"`
+	ChangeLog            string              `json:"changeLog,omitempty"`
+	PrivilegedCommands   []string            `json:"privilegedCommands,omitempty"`
+	PrivilegedPaths      []string            `json:"privilegedPaths,omitempty"`
+	PostInstallCommands  []string            `json:"postInstallCommands,omitempty"`
+	PreUninstallCommands []string            `json:"preUninstallCommands,omitempty"`
 }
 
 func GetMetadata() (*Metadata, error) {
