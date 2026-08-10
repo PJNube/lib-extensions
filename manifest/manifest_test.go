@@ -138,3 +138,76 @@ func TestMetadataUnmarshalLegacyStringPathsRejected(t *testing.T) {
 		t.Fatal("legacy string-array privilegedPaths must be rejected")
 	}
 }
+
+func TestPrivilegedCommandUnmarshal(t *testing.T) {
+	tests := []struct {
+		name    string
+		in      string
+		want    PrivilegedCommand
+		wantErr string
+	}{
+		{
+			name: "command object",
+			in:   `{"command": "/usr/bin/systemctl restart ntpsec.service"}`,
+			want: PrivilegedCommand{Command: "/usr/bin/systemctl restart ntpsec.service"},
+		},
+		{
+			name:    "missing command",
+			in:      `{"reason": "set time"}`,
+			wantErr: "command is required",
+		},
+		{
+			name:    "empty command",
+			in:      `{"command": ""}`,
+			wantErr: "must not be empty",
+		},
+		{
+			name:    "non-string command",
+			in:      `{"command": 42}`,
+			wantErr: "command must be a string",
+		},
+		{
+			name:    "legacy plain string rejected",
+			in:      `"/usr/bin/systemctl restart ntpsec.service"`,
+			wantErr: "must be an object with a",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got PrivilegedCommand
+			err := json.Unmarshal([]byte(tt.in), &got)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("want error containing %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.Command != tt.want.Command {
+				t.Fatalf("got command %q, want %q", got.Command, tt.want.Command)
+			}
+		})
+	}
+}
+
+func TestPrivilegedCommandsCommandsAccessor(t *testing.T) {
+	pcs := PrivilegedCommands{
+		{Command: "/usr/bin/systemctl restart ntpsec.service"},
+		{Command: "/usr/bin/nmcli connection up *"},
+	}
+	got := pcs.Commands()
+	if len(got) != 2 || got[0] != "/usr/bin/systemctl restart ntpsec.service" || got[1] != "/usr/bin/nmcli connection up *" {
+		t.Fatalf("Commands() wrong: %+v", got)
+	}
+}
+
+func TestMetadataUnmarshalLegacyStringCommandsRejected(t *testing.T) {
+	var md Metadata
+	err := json.Unmarshal([]byte(`{"name": "x", "privilegedCommands": ["/usr/bin/date -u -s *"]}`), &md)
+	if err == nil {
+		t.Fatal("legacy string-array privilegedCommands must be rejected")
+	}
+}

@@ -99,6 +99,43 @@ func (ps PrivilegedPaths) BackupPatterns() []string {
 	return out
 }
 
+// PrivilegedCommand declares a platform command an extension needs to run
+// with elevated privileges. Command must be exactly one of the commands in
+// the platform's allowlist; the server resolves the human-readable
+// description from that allowlist and never reads it from the manifest.
+type PrivilegedCommand struct {
+	Command string `json:"command"`
+}
+
+func (pc *PrivilegedCommand) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return fmt.Errorf("privilegedCommands entry must be an object with a \"command\" key")
+	}
+	raw, ok := fields["command"]
+	if !ok {
+		return fmt.Errorf("privilegedCommands entry: command is required")
+	}
+	if err := json.Unmarshal(raw, &pc.Command); err != nil {
+		return fmt.Errorf("privilegedCommands entry: command must be a string")
+	}
+	if pc.Command == "" {
+		return fmt.Errorf("privilegedCommands entry: command must not be empty")
+	}
+	return nil
+}
+
+type PrivilegedCommands []PrivilegedCommand
+
+// Commands returns the command strings in declaration order.
+func (ps PrivilegedCommands) Commands() []string {
+	out := make([]string, 0, len(ps))
+	for _, pc := range ps {
+		out = append(out, pc.Command)
+	}
+	return out
+}
+
 type Metadata struct {
 	Profile       string `json:"profile"`
 	Vendor        string `json:"vendor"`
@@ -117,7 +154,7 @@ type Metadata struct {
 	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
 	ReadMe             string              `json:"readMe,omitempty"`
 	ChangeLog          string              `json:"changeLog,omitempty"`
-	PrivilegedCommands []string            `json:"privilegedCommands,omitempty"`
+	PrivilegedCommands PrivilegedCommands  `json:"privilegedCommands,omitempty"`
 	PrivilegedPaths    PrivilegedPaths     `json:"privilegedPaths,omitempty"`
 	RebootOnRestore    bool                `json:"rebootOnRestore,omitempty"`
 }
