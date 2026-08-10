@@ -152,17 +152,6 @@ func TestPrivilegedCommandUnmarshal(t *testing.T) {
 			want: PrivilegedCommand{Command: "/usr/bin/systemctl restart ntpsec.service"},
 		},
 		{
-			name: "unknown keys carried in Extra",
-			in:   `{"command": "/usr/bin/date -u -s *", "reason": "set time", "optional": true}`,
-			want: PrivilegedCommand{
-				Command: "/usr/bin/date -u -s *",
-				Extra: map[string]json.RawMessage{
-					"reason":   json.RawMessage(`"set time"`),
-					"optional": json.RawMessage(`true`),
-				},
-			},
-		},
-		{
 			name:    "missing command",
 			in:      `{"reason": "set time"}`,
 			wantErr: "command is required",
@@ -200,46 +189,14 @@ func TestPrivilegedCommandUnmarshal(t *testing.T) {
 			if got.Command != tt.want.Command {
 				t.Fatalf("got command %q, want %q", got.Command, tt.want.Command)
 			}
-			if len(got.Extra) != len(tt.want.Extra) {
-				t.Fatalf("got %d extra keys, want %d: %+v", len(got.Extra), len(tt.want.Extra), got.Extra)
-			}
-			for k, v := range tt.want.Extra {
-				if string(got.Extra[k]) != string(v) {
-					t.Fatalf("extra key %q: got %s, want %s", k, got.Extra[k], v)
-				}
-			}
 		})
-	}
-}
-
-func TestPrivilegedCommandUnknownKeysRoundTrip(t *testing.T) {
-	in := `[{"command": "/usr/bin/nmcli connection up *", "reason": "bring up a link", "optional": false}]`
-	var pcs PrivilegedCommands
-	if err := json.Unmarshal([]byte(in), &pcs); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	out, err := json.Marshal(pcs)
-	if err != nil {
-		t.Fatalf("marshal error: %v", err)
-	}
-	var m []map[string]json.RawMessage
-	if err := json.Unmarshal(out, &m); err != nil {
-		t.Fatalf("re-parse error: %v", err)
-	}
-	if len(m) != 1 {
-		t.Fatalf("got %d entries, want 1", len(m))
-	}
-	if string(m[0]["command"]) != `"/usr/bin/nmcli connection up *"` ||
-		string(m[0]["reason"]) != `"bring up a link"` ||
-		string(m[0]["optional"]) != `false` {
-		t.Fatalf("round-trip lost unknown keys: %s", out)
 	}
 }
 
 func TestPrivilegedCommandsCommandsAccessor(t *testing.T) {
 	pcs := PrivilegedCommands{
 		{Command: "/usr/bin/systemctl restart ntpsec.service"},
-		{Command: "/usr/bin/nmcli connection up *", Extra: map[string]json.RawMessage{"reason": json.RawMessage(`"x"`)}},
+		{Command: "/usr/bin/nmcli connection up *"},
 	}
 	got := pcs.Commands()
 	if len(got) != 2 || got[0] != "/usr/bin/systemctl restart ntpsec.service" || got[1] != "/usr/bin/nmcli connection up *" {

@@ -103,11 +103,8 @@ func (ps PrivilegedPaths) BackupPatterns() []string {
 // with elevated privileges. Command must be exactly one of the commands in
 // the platform's allowlist; the server resolves the human-readable
 // description from that allowlist and never reads it from the manifest.
-// Unknown keys (e.g. a future "reason" or "scope") are carried through
-// unmarshal/marshal untouched and ignored by the server.
 type PrivilegedCommand struct {
-	Command string                     `json:"command"`
-	Extra   map[string]json.RawMessage `json:"-"`
+	Command string `json:"command"`
 }
 
 func (pc *PrivilegedCommand) UnmarshalJSON(data []byte) error {
@@ -125,22 +122,7 @@ func (pc *PrivilegedCommand) UnmarshalJSON(data []byte) error {
 	if pc.Command == "" {
 		return fmt.Errorf("privilegedCommands entry: command must not be empty")
 	}
-	delete(fields, "command")
-	pc.Extra = fields
 	return nil
-}
-
-func (pc PrivilegedCommand) MarshalJSON() ([]byte, error) {
-	fields := make(map[string]json.RawMessage, len(pc.Extra)+1)
-	for k, v := range pc.Extra {
-		fields[k] = v
-	}
-	raw, err := json.Marshal(pc.Command)
-	if err != nil {
-		return nil, err
-	}
-	fields["command"] = raw
-	return json.Marshal(fields)
 }
 
 type PrivilegedCommands []PrivilegedCommand
