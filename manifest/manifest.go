@@ -99,6 +99,61 @@ func (ps PrivilegedPaths) BackupPatterns() []string {
 	return out
 }
 
+// PrivilegedCommand declares a platform command an extension needs to run
+// with elevated privileges. Command must be exactly one of the commands in
+// the platform's allowlist; the server resolves the human-readable
+// description from that allowlist and never reads it from the manifest.
+// Unknown keys (e.g. a future "reason" or "scope") are carried through
+// unmarshal/marshal untouched and ignored by the server.
+type PrivilegedCommand struct {
+	Command string                     `json:"command"`
+	Extra   map[string]json.RawMessage `json:"-"`
+}
+
+func (pc *PrivilegedCommand) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return fmt.Errorf("privilegedCommands entry must be an object with a \"command\" key")
+	}
+	raw, ok := fields["command"]
+	if !ok {
+		return fmt.Errorf("privilegedCommands entry: command is required")
+	}
+	if err := json.Unmarshal(raw, &pc.Command); err != nil {
+		return fmt.Errorf("privilegedCommands entry: command must be a string")
+	}
+	if pc.Command == "" {
+		return fmt.Errorf("privilegedCommands entry: command must not be empty")
+	}
+	delete(fields, "command")
+	pc.Extra = fields
+	return nil
+}
+
+func (pc PrivilegedCommand) MarshalJSON() ([]byte, error) {
+	fields := make(map[string]json.RawMessage, len(pc.Extra)+1)
+	for k, v := range pc.Extra {
+		fields[k] = v
+	}
+	raw, err := json.Marshal(pc.Command)
+	if err != nil {
+		return nil, err
+	}
+	fields["command"] = raw
+	return json.Marshal(fields)
+}
+
+type PrivilegedCommands []PrivilegedCommand
+
+// Commands returns the command strings in declaration order.
+func (ps PrivilegedCommands) Commands() []string {
+	out := make([]string, 0, len(ps))
+	for _, pc := range ps {
+		out = append(out, pc.Command)
+	}
+	return out
+}
+
 type Metadata struct {
 	Profile       string `json:"profile"`
 	Vendor        string `json:"vendor"`
@@ -117,7 +172,7 @@ type Metadata struct {
 	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
 	ReadMe             string              `json:"readMe,omitempty"`
 	ChangeLog          string              `json:"changeLog,omitempty"`
-	PrivilegedCommands []string            `json:"privilegedCommands,omitempty"`
+	PrivilegedCommands PrivilegedCommands  `json:"privilegedCommands,omitempty"`
 	PrivilegedPaths    PrivilegedPaths     `json:"privilegedPaths,omitempty"`
 	RebootOnRestore    bool                `json:"rebootOnRestore,omitempty"`
 }
