@@ -127,6 +127,7 @@ type Metadata struct {
 	// PrivilegedEngineAccess is a CE extension's control-engine access; nil
 	// when the manifest declares none (BE and UI extensions).
 	PrivilegedEngineAccess *EngineAccess `json:"privilegedEngineAccess,omitempty"`
+	Backup                 *Backup       `json:"backup,omitempty"`
 }
 
 func (e *Metadata) UnmarshalJSON(data []byte) error {
