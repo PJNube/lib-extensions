@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
+	"unicode"
 )
 
 const MetadataFileName = "extension.json"
@@ -44,7 +47,10 @@ const (
 )
 
 // PrivilegedPath declares a host path an extension needs privileged handling
-// for. ACL controls the access grant applied at install time; Backup controls
+// for.
+//
+// Deprecated: declare Permissions instead. The platform owns which files a
+// permission touches and whether they are backed up. ACL controls the access grant applied at install time; Backup controls
 // whether the path is captured in system backups. Both default to their zero
 // value (no grant, no backup), so every entry must opt in explicitly.
 type PrivilegedPath struct {
@@ -100,7 +106,10 @@ func (ps PrivilegedPaths) BackupPatterns() []string {
 }
 
 // PrivilegedCommand declares a platform command an extension needs to run
-// with elevated privileges. Command must be exactly one of the commands in
+// with elevated privileges.
+//
+// Deprecated: declare Permissions instead and call the granted actions with
+// the privileged package. Command must be exactly one of the commands in
 // the platform's allowlist; the server resolves the human-readable
 // description from that allowlist and never reads it from the manifest.
 type PrivilegedCommand struct {
@@ -136,6 +145,72 @@ func (ps PrivilegedCommands) Commands() []string {
 	return out
 }
 
+// permissionNamePattern matches a permission name such as "SetTimeZone".
+var permissionNamePattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]{1,63}$`)
+
+// maxPermissionReason caps a permission's reason, shown to the user at install.
+const maxPermissionReason = 300
+
+// Permission is a platform permission an extension requests, by name (e.g.
+// "SetTimeZone"), with the reason it needs it. The platform owns what the name
+// grants: the privileged actions it unlocks, its risk level, and which system
+// files it backs up. The reason is shown to the user next to the platform's
+// own description. An unknown name fails the install.
+type Permission struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
+}
+
+func (p *Permission) UnmarshalJSON(data []byte) error {
+	type Alias Permission
+	if err := json.Unmarshal(data, (*Alias)(p)); err != nil {
+		return fmt.Errorf("permissions entry must be an object with \"name\" and \"reason\"")
+	}
+	if !permissionNamePattern.MatchString(p.Name) {
+		return fmt.Errorf("permissions entry %q: name must be PascalCase letters and digits", p.Name)
+	}
+	p.Reason = strings.TrimSpace(p.Reason)
+	if p.Reason == "" {
+		return fmt.Errorf("permissions entry %q: reason is required", p.Name)
+	}
+	if len([]rune(p.Reason)) > maxPermissionReason {
+		return fmt.Errorf("permissions entry %q: reason must be at most %d characters", p.Name, maxPermissionReason)
+	}
+	for _, r := range p.Reason {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("permissions entry %q: reason must be a single line of text", p.Name)
+		}
+	}
+	return nil
+}
+
+type Permissions []Permission
+
+func (ps *Permissions) UnmarshalJSON(data []byte) error {
+	var entries []Permission
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return err
+	}
+	seen := make(map[string]struct{}, len(entries))
+	for _, p := range entries {
+		if _, ok := seen[p.Name]; ok {
+			return fmt.Errorf("permissions entry %q: declared more than once", p.Name)
+		}
+		seen[p.Name] = struct{}{}
+	}
+	*ps = entries
+	return nil
+}
+
+// Names returns the requested permission names in declaration order.
+func (ps Permissions) Names() []string {
+	out := make([]string, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, p.Name)
+	}
+	return out
+}
+
 type Metadata struct {
 	Profile       string `json:"profile"`
 	Vendor        string `json:"vendor"`
@@ -154,9 +229,10 @@ type Metadata struct {
 	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
 	ReadMe             string              `json:"readMe,omitempty"`
 	ChangeLog          string              `json:"changeLog,omitempty"`
-	PrivilegedCommands PrivilegedCommands  `json:"privilegedCommands,omitempty"`
-	PrivilegedPaths    PrivilegedPaths     `json:"privilegedPaths,omitempty"`
-	RebootOnRestore    bool                `json:"rebootOnRestore,omitempty"`
+	Permissions        Permissions         `json:"permissions,omitempty"`
+	PrivilegedCommands PrivilegedCommands  `json:"privilegedCommands,omitempty"` // Deprecated: use Permissions.
+	PrivilegedPaths    PrivilegedPaths     `json:"privilegedPaths,omitempty"`    // Deprecated: use Permissions.
+	RebootOnRestore    bool                `json:"rebootOnRestore,omitempty"`    // Deprecated: derived from Permissions.
 }
 
 func (e *Metadata) UnmarshalJSON(data []byte) error {
