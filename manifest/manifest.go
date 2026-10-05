@@ -39,112 +39,6 @@ type OpenAPISchema struct {
 	Path  string `json:"path"`
 }
 
-// ACL permission levels for a PrivilegedPath.
-const (
-	ACLNone      = ""   // no ACL grant
-	ACLRead      = "r"  // read-only grant
-	ACLReadWrite = "rw" // read-write grant
-)
-
-// PrivilegedPath declares a host path an extension needs privileged handling
-// for.
-//
-// Deprecated: declare Permissions instead. The platform owns which files a
-// permission touches and whether they are backed up. ACL controls the access grant applied at install time; Backup controls
-// whether the path is captured in system backups. Both default to their zero
-// value (no grant, no backup), so every entry must opt in explicitly.
-type PrivilegedPath struct {
-	Path   string `json:"path"`
-	ACL    string `json:"acl"`
-	Backup bool   `json:"backup"`
-}
-
-func (p *PrivilegedPath) UnmarshalJSON(data []byte) error {
-	type Alias PrivilegedPath
-	if err := json.Unmarshal(data, (*Alias)(p)); err != nil {
-		return err
-	}
-	if p.Path == "" {
-		return fmt.Errorf("privilegedPaths entry: path is required")
-	}
-	if p.Path[0] != '/' {
-		return fmt.Errorf("privilegedPaths entry %q: path must be absolute", p.Path)
-	}
-	switch p.ACL {
-	case ACLNone, ACLRead, ACLReadWrite:
-	default:
-		return fmt.Errorf("privilegedPaths entry %q: invalid acl %q (must be \"\", \"r\" or \"rw\")", p.Path, p.ACL)
-	}
-	if p.ACL == ACLNone && !p.Backup {
-		return fmt.Errorf("privilegedPaths entry %q: declares neither acl nor backup", p.Path)
-	}
-	return nil
-}
-
-type PrivilegedPaths []PrivilegedPath
-
-// ACLPaths returns the entries that request an ACL grant.
-func (ps PrivilegedPaths) ACLPaths() PrivilegedPaths {
-	var out PrivilegedPaths
-	for _, p := range ps {
-		if p.ACL != ACLNone {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// BackupPatterns returns the path patterns of entries that request backup.
-func (ps PrivilegedPaths) BackupPatterns() []string {
-	var out []string
-	for _, p := range ps {
-		if p.Backup {
-			out = append(out, p.Path)
-		}
-	}
-	return out
-}
-
-// PrivilegedCommand declares a platform command an extension needs to run
-// with elevated privileges.
-//
-// Deprecated: declare Permissions instead and call the granted actions with
-// the privileged package. Command must be exactly one of the commands in
-// the platform's allowlist; the server resolves the human-readable
-// description from that allowlist and never reads it from the manifest.
-type PrivilegedCommand struct {
-	Command string `json:"command"`
-}
-
-func (pc *PrivilegedCommand) UnmarshalJSON(data []byte) error {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return fmt.Errorf("privilegedCommands entry must be an object with a \"command\" key")
-	}
-	raw, ok := fields["command"]
-	if !ok {
-		return fmt.Errorf("privilegedCommands entry: command is required")
-	}
-	if err := json.Unmarshal(raw, &pc.Command); err != nil {
-		return fmt.Errorf("privilegedCommands entry: command must be a string")
-	}
-	if pc.Command == "" {
-		return fmt.Errorf("privilegedCommands entry: command must not be empty")
-	}
-	return nil
-}
-
-type PrivilegedCommands []PrivilegedCommand
-
-// Commands returns the command strings in declaration order.
-func (ps PrivilegedCommands) Commands() []string {
-	out := make([]string, 0, len(ps))
-	for _, pc := range ps {
-		out = append(out, pc.Command)
-	}
-	return out
-}
-
 // permissionNamePattern matches a permission name such as "SetTimeZone".
 var permissionNamePattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]{1,63}$`)
 
@@ -219,20 +113,17 @@ type Metadata struct {
 	BuildTime     string `json:"buildTime"`
 	Uninstallable bool   `json:"uninstallable,omitempty"`
 
-	BuildUser          string              `json:"buildUser,omitempty"`
-	Description        string              `json:"description,omitempty"`
-	Dependencies       Dependencies        `json:"dependencies,omitempty"`
-	Subjects           map[string][]string `json:"subjects,omitempty"`
-	Resources          []Resource          `json:"resources,omitempty"`
-	DataAccesses       []DataAccess        `json:"dataAccesses,omitempty"`
-	StaticPath         string              `json:"staticPath,omitempty"`
-	OpenAPISchemas     []OpenAPISchema     `json:"openAPISchemas,omitempty"`
-	ReadMe             string              `json:"readMe,omitempty"`
-	ChangeLog          string              `json:"changeLog,omitempty"`
-	Permissions        Permissions         `json:"permissions,omitempty"`
-	PrivilegedCommands PrivilegedCommands  `json:"privilegedCommands,omitempty"` // Deprecated: use Permissions.
-	PrivilegedPaths    PrivilegedPaths     `json:"privilegedPaths,omitempty"`    // Deprecated: use Permissions.
-	RebootOnRestore    bool                `json:"rebootOnRestore,omitempty"`    // Deprecated: derived from Permissions.
+	BuildUser      string              `json:"buildUser,omitempty"`
+	Description    string              `json:"description,omitempty"`
+	Dependencies   Dependencies        `json:"dependencies,omitempty"`
+	Subjects       map[string][]string `json:"subjects,omitempty"`
+	Resources      []Resource          `json:"resources,omitempty"`
+	DataAccesses   []DataAccess        `json:"dataAccesses,omitempty"`
+	StaticPath     string              `json:"staticPath,omitempty"`
+	OpenAPISchemas []OpenAPISchema     `json:"openAPISchemas,omitempty"`
+	ReadMe         string              `json:"readMe,omitempty"`
+	ChangeLog      string              `json:"changeLog,omitempty"`
+	Permissions    Permissions         `json:"permissions,omitempty"`
 }
 
 func (e *Metadata) UnmarshalJSON(data []byte) error {
