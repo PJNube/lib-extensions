@@ -124,6 +124,9 @@ type Metadata struct {
 	ReadMe         string              `json:"readMe,omitempty"`
 	ChangeLog      string              `json:"changeLog,omitempty"`
 	Permissions    Permissions         `json:"permissions,omitempty"`
+	// PrivilegedEngineAccess is a CE extension's control-engine access; nil
+	// when the manifest declares none (BE and UI extensions).
+	PrivilegedEngineAccess *EngineAccess `json:"privilegedEngineAccess,omitempty"`
 }
 
 func (e *Metadata) UnmarshalJSON(data []byte) error {
