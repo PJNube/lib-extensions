@@ -27,17 +27,26 @@ var delegatedWriteCapabilities = []string{
 	"updateValues", "override", "callActions", "annotate", "add", "remove", "move", "copy", "edges", "userAccess",
 }
 
-// EngineAccess is what a CE extension asks the control engine for. Only
-// shmRead is kept: it is the one value the platform acts on (the SHM readers
-// group and the unit's --shm-bucket); the engine reads the grants itself from
-// the installed extension.json, which is never rewritten from this type.
-// Decoding still refuses what the engine refuses at load (control-engine
-// manifest_access_parse.hpp, parseAccess) down to the capability names, so a
-// package the engine would not load is refused at upload; the engine still
-// checks the scopes inside each capability and the action names.
+// EngineAccess is what a CE extension asks the control engine for: read
+// access to its shared memory, the writes it may make on behalf of others,
+// audit reads and engine actions. The platform acts on ShmRead (the SHM
+// readers group and the unit's --shm-bucket); the grants are kept as declared
+// so the UI can show them. Decoding refuses what the engine refuses at load
+// (control-engine manifest_access_parse.hpp, parseAccess) down to the
+// capability names, so a package the engine would not load is refused at
+// upload; the engine still checks the scopes inside each capability and the
+// action names.
 type EngineAccess struct {
 	// ShmRead is ShmReadFull or ShmReadNone.
 	ShmRead string `json:"shmRead"`
+	// DelegatedWrite maps a capability (e.g. "add") to its scope object. It
+	// is required; an empty object grants nothing.
+	DelegatedWrite map[string]json.RawMessage `json:"delegatedWrite"`
+	// AuditRead is present when the extension may read the audit log; its
+	// presence is the grant, so even an empty object is kept.
+	AuditRead json.RawMessage `json:"auditRead,omitempty"`
+	// EngineActions maps an engine action to its options object.
+	EngineActions map[string]json.RawMessage `json:"engineActions,omitempty"`
 }
 
 func (a *EngineAccess) UnmarshalJSON(data []byte) error {
@@ -59,17 +68,14 @@ func (a *EngineAccess) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%s.shmRead must be %q or %q", EngineAccessKey, ShmReadFull, ShmReadNone)
 	}
 
-	// delegatedWrite maps a capability (e.g. "add") to its scope object. It is
-	// required; an empty object grants nothing.
 	raw, ok := fields["delegatedWrite"]
 	if !ok {
 		return fmt.Errorf("%s.delegatedWrite is required (an empty object grants nothing)", EngineAccessKey)
 	}
-	delegatedWrite, err := jsonObject(raw, EngineAccessKey+".delegatedWrite")
-	if err != nil {
+	if access.DelegatedWrite, err = jsonObject(raw, EngineAccessKey+".delegatedWrite"); err != nil {
 		return err
 	}
-	for capability, scope := range delegatedWrite {
+	for capability, scope := range access.DelegatedWrite {
 		if !slices.Contains(delegatedWriteCapabilities, capability) {
 			return fmt.Errorf("%s.delegatedWrite names an unknown capability %q", EngineAccessKey, capability)
 		}
@@ -82,14 +88,13 @@ func (a *EngineAccess) UnmarshalJSON(data []byte) error {
 		if _, err := jsonObject(raw, EngineAccessKey+".auditRead"); err != nil {
 			return err
 		}
+		access.AuditRead = raw
 	}
-	// engineActions maps an engine action to its options object.
 	if raw, ok := fields["engineActions"]; ok {
-		engineActions, err := jsonObject(raw, EngineAccessKey+".engineActions")
-		if err != nil {
+		if access.EngineActions, err = jsonObject(raw, EngineAccessKey+".engineActions"); err != nil {
 			return err
 		}
-		for action, options := range engineActions {
+		for action, options := range access.EngineActions {
 			if _, err := jsonObject(options, EngineAccessKey+".engineActions."+action); err != nil {
 				return err
 			}

@@ -53,6 +53,19 @@ func TestMetadataEngineAccess(t *testing.T) {
 	if ce.PrivilegedEngineAccess == nil || ce.PrivilegedEngineAccess.ShmRead != ShmReadFull {
 		t.Fatalf("engine access not decoded: %+v", ce.PrivilegedEngineAccess)
 	}
+	// The grants reach the API (which serializes Metadata) as declared.
+	out, err := json.Marshal(ce)
+	if err != nil || !strings.Contains(string(out), `"privilegedEngineAccess":{"shmRead":"full","delegatedWrite":{"add":{}}}`) {
+		t.Fatalf("engine access must round-trip: %s, %v", out, err)
+	}
+	var full Metadata
+	if err := json.Unmarshal([]byte(`{"profile":"CE","vendor":"acme","name":"widget","privilegedEngineAccess":{"shmRead":"none","delegatedWrite":{"add":{"types":"any","location":"anywhere"}},"auditRead":{},"engineActions":{"restart":{}}}}`), &full); err != nil {
+		t.Fatal(err)
+	}
+	out, _ = json.Marshal(full.PrivilegedEngineAccess)
+	if string(out) != `{"shmRead":"none","delegatedWrite":{"add":{"types":"any","location":"anywhere"}},"auditRead":{},"engineActions":{"restart":{}}}` {
+		t.Fatalf("all declared grants must be kept: %s", out)
+	}
 
 	var be Metadata
 	if err := json.Unmarshal([]byte(`{"profile":"BE","vendor":"acme","name":"svc","version":"1.0.0"}`), &be); err != nil {
@@ -66,7 +79,7 @@ func TestMetadataEngineAccess(t *testing.T) {
 	}
 
 	var bad Metadata
-	err := json.Unmarshal([]byte(`{"profile":"CE","vendor":"acme","name":"widget","privilegedEngineAccess":{"shmRead":"full"}}`), &bad)
+	err = json.Unmarshal([]byte(`{"profile":"CE","vendor":"acme","name":"widget","privilegedEngineAccess":{"shmRead":"full"}}`), &bad)
 	if err == nil || !strings.Contains(err.Error(), "delegatedWrite is required") {
 		t.Fatalf("an invalid declaration must fail the manifest, got %v", err)
 	}
