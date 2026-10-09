@@ -1,6 +1,6 @@
 package manifest
 
-const DefaultBackupResourceManifestSubject = "get.system.backup.resource-manifest"
+const DefaultBackupResourceSubject = "get.api.backup.resource"
 
 type Backup struct {
 	Enabled    bool   `json:"enabled,omitempty"`
@@ -10,18 +10,12 @@ type Backup struct {
 
 func (b *Backup) EffectiveSubject() string {
 	if b == nil || b.Subject == "" {
-		return DefaultBackupResourceManifestSubject
+		return DefaultBackupResourceSubject
 	}
 	return b.Subject
 }
 
-type BackupResourceManifestRequest struct {
-	Version string            `json:"version"`
-	Tier    string            `json:"tier"`
-	Roots   map[string]string `json:"roots,omitempty"`
-}
-
-type BackupResourceManifestResponse struct {
+type ExtensionBackupResourceResp struct {
 	Files []BackupResourceFile `json:"files"`
 }
 
