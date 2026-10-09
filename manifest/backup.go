@@ -1,18 +1,9 @@
 package manifest
 
-const DefaultBackupResourceSubject = "get.api.backup.resource"
-
 type Backup struct {
 	Enabled    bool   `json:"enabled,omitempty"`
 	SkipFailed bool   `json:"skipFailed,omitempty"`
 	Subject    string `json:"subject,omitempty"`
-}
-
-func (b *Backup) EffectiveSubject() string {
-	if b == nil || b.Subject == "" {
-		return DefaultBackupResourceSubject
-	}
-	return b.Subject
 }
 
 type ExtensionBackupResourceResp struct {
